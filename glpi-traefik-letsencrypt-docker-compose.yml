@@ -1,0 +1,130 @@
+# GLPI with Let's Encrypt in a Docker Compose
+
+# Vladimir Mikhalev
+# callvaldemar@gmail.com
+# www.heyvaldemar.com
+
+# Install the Docker Engine by following the official guide: https://docs.docker.com/engine/install/
+# Install the Docker Compose by following the official guide: https://docs.docker.com/compose/install/
+
+# Deploy GLPI server with a Docker Compose using the command:
+# docker-compose -f glpi-traefik-letsencrypt-docker-compose.yml -p glpi up -d
+
+volumes:
+  mysql-data:
+  glpi-data:
+  traefik-certificates:
+
+services:
+  mysql:
+    # Image tag (replace with yours)
+    image: mysql:5.7.23
+    volumes:
+      - mysql-data:/var/lib/mysql
+    environment:
+      # Database name (replace with yours)
+      MYSQL_DATABASE: glpidb
+      # Database user (replace with yours)
+      MYSQL_USER: glpidbuser
+      # Database password (replace with yours)
+      MYSQL_PASSWORD: cVfPUwhiHWanjmviN4xt
+      # MySQL root password (replace with yours)
+      MYSQL_ROOT_PASSWORD: 7rQaQjacPJFvJ8rhUCkp
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "127.0.0.1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  glpi:
+    image: diouxx/glpi:latest
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - glpi-data:/var/www/html/glpi
+    environment:
+      # Timezone (replace with yours)
+      TIMEZONE: Europe/Brussels
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+    labels:
+      - "traefik.enable=true"
+      # GLPI URL (replace with yours)
+      - "traefik.http.routers.glpi.rule=Host(`glpi.heyvaldemar.net`)"
+      - "traefik.http.routers.glpi.service=glpi"
+      - "traefik.http.routers.glpi.entrypoints=websecure"
+      - "traefik.http.services.glpi.loadbalancer.server.port=80"
+      - "traefik.http.routers.glpi.tls=true"
+      - "traefik.http.routers.glpi.tls.certresolver=letsencrypt"
+      - "traefik.http.services.glpi.loadbalancer.passhostheader=true"
+      - "traefik.http.routers.glpi.middlewares=compresstraefik"
+      - "traefik.http.middlewares.compresstraefik.compress=true"
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      traefik:
+        condition: service_healthy
+
+  traefik:
+    # Image tag (replace with yours)
+    image: traefik:2.4
+    command:
+      - "--log.level=WARN"
+      - "--accesslog=true"
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--ping=true"
+      - "--ping.entrypoint=ping"
+      - "--entryPoints.ping.address=:8082"
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.websecure.address=:443"
+      - "--providers.docker=true"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      - "--providers.docker.exposedByDefault=false"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      # Email for Let's Encrypt (replace with yours)
+      - "--certificatesresolvers.letsencrypt.acme.email=callvaldemar@gmail.com"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
+      - "--global.checkNewVersion=true"
+      - "--global.sendAnonymousUsage=false"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - traefik-certificates:/etc/traefik/acme
+    ports:
+      - "80:80"
+      - "443:443"
+    healthcheck:
+      test: ["CMD", "wget", "http://localhost:8082/ping","--spider"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    labels:
+      - "traefik.enable=true"
+      # Traefik URL (replace with yours)
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.glpi.heyvaldemar.net`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.services.dashboard.loadbalancer.passhostheader=true"
+      - "traefik.http.routers.dashboard.middlewares=authtraefik"
+      # Basic Authentication for Traefik Dashboard
+      # Username: traefikadmin (replace with yours)
+      # Passwords must be encoded using MD5, SHA1, or BCrypt
+      - "traefik.http.middlewares.authtraefik.basicauth.users=traefikadmin:$$2y$$10$$sMzJfirKC75x/hVpiINeZOiSm.Jkity9cn4KwNkRvO7hSQVFc5FLO"
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+    restart: unless-stopped
