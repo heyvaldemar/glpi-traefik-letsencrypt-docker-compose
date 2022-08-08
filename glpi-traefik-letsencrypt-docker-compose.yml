@@ -18,7 +18,7 @@ volumes:
 services:
   mysql:
     # Image tag (replace with yours)
-    image: mysql:5.7.23
+    image: mysql:8
     volumes:
       - mysql-data:/var/lib/mysql
     environment:
@@ -74,7 +74,7 @@ services:
 
   traefik:
     # Image tag (replace with yours)
-    image: traefik:2.4
+    image: traefik:2.8
     command:
       - "--log.level=WARN"
       - "--accesslog=true"
