@@ -4,7 +4,7 @@ Install Docker Engine and Docker Compose by following my [guide](https://www.hey
 
 Deploy GLPI server with a Docker Compose using the command:
 
-`docker-compose -f glpi-traefik-letsencrypt-docker-compose.yml -p glpi up -d`
+`docker compose -f glpi-traefik-letsencrypt-docker-compose.yml -p glpi up -d`
 
 # Author
 
