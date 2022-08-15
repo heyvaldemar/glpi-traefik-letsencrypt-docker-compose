@@ -7,7 +7,6 @@ Deploy GLPI server with a Docker Compose using the command:
 `docker compose -f glpi-traefik-letsencrypt-docker-compose.yml -p glpi up -d`
 
 # Author
-
 hey, I’m Vladimir Mikhalev, but my friends call me Valdemar.
 
 🌐 My [website](https://www.heyvaldemar.com/) with detailed IT guides\
