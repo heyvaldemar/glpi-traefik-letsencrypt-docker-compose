@@ -1,3 +1,15 @@
+# Image pins live HERE, as interpolation defaults, so `git pull` (or
+# re-downloading this file) delivers the exact version combination this
+# repository has tested — no .env editing required. Setting the matching
+# variable in .env overrides the default for anyone who wants to pin
+# differently; .env itself carries only secrets and deliberate overrides.
+# CI (Trivy scans, check-pin-freshness, the ephemeral test .env) reads
+# the pins from these lines — this block is the single source of truth.
+x-images:
+  traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:3.7@sha256:9c2a54d87f76f5c2f5f2682c68394af92fb12c0a2686798d6462a3f84bd78eaf}
+  mariadb: &mariadb-image ${GLPI_MARIADB_IMAGE_TAG:-mariadb:11.4@sha256:611a2fcc5fa7c6ceb8644c6f74b25ede004ff6c3a6b38c8f8c23d3bbf6c26430}
+  glpi: &glpi-image ${GLPI_IMAGE_TAG:-elestio/glpi:11.0.8@sha256:3cd66c394b4377c5831a407539386b72fcdcd3d8bed3abdc3da8a680c61403a9}
+
 networks:
   glpi-network:
     external: true
@@ -14,14 +26,14 @@ volumes:
 
 services:
   mariadb:
-    image: ${GLPI_MARIADB_IMAGE_TAG}
+    image: *mariadb-image
     volumes:
       - mariadb-data:/var/lib/mysql
     environment:
-      MARIADB_DATABASE: ${GLPI_DB_NAME}
-      MARIADB_USER: ${GLPI_DB_USER}
-      MARIADB_PASSWORD: ${GLPI_DB_PASSWORD}
-      MARIADB_ROOT_PASSWORD: ${GLPI_DB_ADMIN_PASSWORD}
+      MARIADB_DATABASE: ${GLPI_DB_NAME:-glpidb}
+      MARIADB_USER: ${GLPI_DB_USER:-glpidbuser}
+      MARIADB_PASSWORD: ${GLPI_DB_PASSWORD:?set in .env - see .env.example for generation command}
+      MARIADB_ROOT_PASSWORD: ${GLPI_DB_ADMIN_PASSWORD:?set in .env - see .env.example for generation command}
     networks:
       - glpi-network
     healthcheck:
@@ -33,13 +45,13 @@ services:
     restart: unless-stopped
 
   glpi:
-    image: ${GLPI_IMAGE_TAG}
+    image: *glpi-image
     volumes:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
-      - glpi-data:${DATA_PATH}
+      - glpi-data:${DATA_PATH:-/var/www/html/glpi}
     environment:
-      TIMEZONE: ${GLPI_TIMEZONE}
+      TIMEZONE: ${GLPI_TIMEZONE:-UTC}
     networks:
       - glpi-network
       - traefik-network
@@ -53,7 +65,7 @@ services:
       # Enable Traefik for this container
       - "traefik.enable=true"
       # Match incoming requests on a specific hostname
-      - "traefik.http.routers.glpi.rule=Host(`${GLPI_HOSTNAME}`)"
+      - "traefik.http.routers.glpi.rule=Host(`${GLPI_HOSTNAME:?set in .env - see .env.example}`)"
       # Assign the router to a named Traefik service
       - "traefik.http.routers.glpi.service=glpi"
       # Use the 'websecure' (HTTPS) entry point
@@ -80,10 +92,10 @@ services:
         condition: service_healthy
 
   traefik:
-    image: ${TRAEFIK_IMAGE_TAG}
+    image: *traefik-image
     command:
       # Set the log level (DEBUG, INFO, WARN, ERROR)
-      - "--log.level=${TRAEFIK_LOG_LEVEL}"
+      - "--log.level=${TRAEFIK_LOG_LEVEL:-WARN}"
       # Enable the built-in API and web-based dashboard
       - "--api.dashboard=true"
       # Enable the /ping endpoint so we can health-check Traefik
@@ -108,7 +120,7 @@ services:
       # Use ACME (Let's Encrypt) to generate/renew certificates via TLS challenge
       - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
       # The email address used by Let's Encrypt for renewal notices
-      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL:?set in .env - see .env.example}"
       # The file where ACME certificates are stored inside the container
       - "--certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme/acme.json"
       # Enable Prometheus metrics
@@ -137,14 +149,14 @@ services:
       # Enable Traefik for this container
       - "traefik.enable=true"
       # A router to expose the Traefik dashboard
-      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME}`)"
+      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_HOSTNAME:?set in .env - see .env.example}`)"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
       - "traefik.http.routers.dashboard.tls=true"
       - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.dashboard.service=api@internal"
       # Basic Authentication for the Traefik dashboard
       - "traefik.http.routers.dashboard.middlewares=authtraefik"
-      - "traefik.http.middlewares.authtraefik.basicauth.users=${TRAEFIK_BASIC_AUTH}"
+      - "traefik.http.middlewares.authtraefik.basicauth.users=${TRAEFIK_BASIC_AUTH:?set in .env - see .env.example for htpasswd generation}"
       # Specify the internal server port to the dashboard service
       - "traefik.http.services.dashboard.loadbalancer.server.port=8080"
       # Pass the original Host header to the backend
@@ -152,33 +164,33 @@ services:
     restart: unless-stopped
 
   backups:
-    image: ${GLPI_MARIADB_IMAGE_TAG}
+    image: *mariadb-image
     command: >-
-      sh -c 'sleep $BACKUP_INIT_SLEEP &&
+      sh -c 'sleep $$BACKUP_INIT_SLEEP &&
       while true; do
-        mariadb-dump -h mariadb -u $GLPI_DB_USER -p"$GLPI_DB_PASSWORD" $GLPI_DB_NAME | gzip > "$MARIADB_BACKUPS_PATH/$MARIADB_BACKUP_NAME-$(date '+%Y-%m-%d_%H-%M').gz" &&
-        tar -zcpf $DATA_BACKUPS_PATH/$DATA_BACKUP_NAME-$(date "+%Y-%m-%d_%H-%M").tar.gz $DATA_PATH &&
-        find $MARIADB_BACKUPS_PATH -type f -mtime +$MARIADB_BACKUP_PRUNE_DAYS | xargs rm -f &&
-        find $DATA_BACKUPS_PATH -type f -mtime +$DATA_BACKUP_PRUNE_DAYS | xargs rm -f;
-        sleep $BACKUP_INTERVAL; done'
+        mariadb-dump -h mariadb -u $$GLPI_DB_USER -p"$$GLPI_DB_PASSWORD" $$GLPI_DB_NAME | gzip > "$$MARIADB_BACKUPS_PATH/$$MARIADB_BACKUP_NAME-$$(date '+%Y-%m-%d_%H-%M').gz" &&
+        tar -zcpf $$DATA_BACKUPS_PATH/$$DATA_BACKUP_NAME-$$(date "+%Y-%m-%d_%H-%M").tar.gz $$DATA_PATH &&
+        find $$MARIADB_BACKUPS_PATH -type f -mtime +$$MARIADB_BACKUP_PRUNE_DAYS | xargs rm -f &&
+        find $$DATA_BACKUPS_PATH -type f -mtime +$$DATA_BACKUP_PRUNE_DAYS | xargs rm -f;
+        sleep $$BACKUP_INTERVAL; done'
     volumes:
       - glpi-mariadb-backup:/var/lib/mysql
-      - glpi-data:${DATA_PATH}
-      - glpi-data-backups:${DATA_BACKUPS_PATH}
-      - glpi-database-backups:${MARIADB_BACKUPS_PATH}
+      - glpi-data:${DATA_PATH:-/var/www/html/glpi}
+      - glpi-data-backups:${DATA_BACKUPS_PATH:-/srv/glpi-application-data/backups}
+      - glpi-database-backups:${MARIADB_BACKUPS_PATH:-/srv/glpi-mariadb/backups}
     environment:
-      GLPI_DB_NAME: ${GLPI_DB_NAME}
-      GLPI_DB_USER: ${GLPI_DB_USER}
+      GLPI_DB_NAME: ${GLPI_DB_NAME:-glpidb}
+      GLPI_DB_USER: ${GLPI_DB_USER:-glpidbuser}
       GLPI_DB_PASSWORD: ${GLPI_DB_PASSWORD}
-      BACKUP_INIT_SLEEP: ${BACKUP_INIT_SLEEP}
-      BACKUP_INTERVAL: ${BACKUP_INTERVAL}
-      MARIADB_BACKUP_PRUNE_DAYS: ${MARIADB_BACKUP_PRUNE_DAYS}
-      DATA_BACKUP_PRUNE_DAYS: ${DATA_BACKUP_PRUNE_DAYS}
-      MARIADB_BACKUPS_PATH: ${MARIADB_BACKUPS_PATH}
-      DATA_BACKUPS_PATH: ${DATA_BACKUPS_PATH}
-      DATA_PATH: ${DATA_PATH}
-      MARIADB_BACKUP_NAME: ${MARIADB_BACKUP_NAME}
-      DATA_BACKUP_NAME: ${DATA_BACKUP_NAME}
+      BACKUP_INIT_SLEEP: ${BACKUP_INIT_SLEEP:-30m}
+      BACKUP_INTERVAL: ${BACKUP_INTERVAL:-24h}
+      MARIADB_BACKUP_PRUNE_DAYS: ${MARIADB_BACKUP_PRUNE_DAYS:-7}
+      DATA_BACKUP_PRUNE_DAYS: ${DATA_BACKUP_PRUNE_DAYS:-7}
+      MARIADB_BACKUPS_PATH: ${MARIADB_BACKUPS_PATH:-/srv/glpi-mariadb/backups}
+      DATA_BACKUPS_PATH: ${DATA_BACKUPS_PATH:-/srv/glpi-application-data/backups}
+      DATA_PATH: ${DATA_PATH:-/var/www/html/glpi}
+      MARIADB_BACKUP_NAME: ${MARIADB_BACKUP_NAME:-glpi-mariadb-backup}
+      DATA_BACKUP_NAME: ${DATA_BACKUP_NAME:-glpi-application-data-backup}
     networks:
       - glpi-network
     restart: unless-stopped
