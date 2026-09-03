@@ -51,7 +51,7 @@ _(no unreleased changes yet)_
 
 ### Added
 
-- **`tests/e2e-backup-restore.sh`** — seven end-to-end scenarios against
+- **`tests/e2e-backup-restore.sh`**: seven end-to-end scenarios against
   the live stack, run by CI on every push and by you locally: the
   required-variable guard fires, a backup is produced, it is a readable
   archive with real dump content (and a readable data `tar.gz` where the
@@ -87,13 +87,13 @@ v1.2.0.
 
 ### Security
 
-- **GLPI bumped 10.0.10 → 11.0.8** (major bump — back up before pulling
+- **GLPI bumped 10.0.10 → 11.0.8** (major bump, back up before pulling
   and let GLPI run its migration on first start). **MariaDB moved from
   the EOL 11.2 short-term line to 11.4 LTS.** **Traefik bumped 3.2 → 3.7**
   (3.2's Docker client cannot talk to Docker Engine 29).
 - **All three images pinned by `tag@sha256:digest`.**
 - **Credentials untracked from git.** The tracked `.env` carried
-  generated-looking database passwords — rotate them if reused.
+  generated-looking database passwords. Rotate them if reused.
 
 ### Changed
 
