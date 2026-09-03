@@ -16,7 +16,7 @@
 - [Security Notes](#security-notes)
 - [About the maintainer](#about-the-maintainer)
 
-This repository deploys **GLPI** (IT asset management + helpdesk) behind **Traefik** with automatic **Let's Encrypt TLS**, backed by **MariaDB 11.4 LTS**, with scheduled **backups** (database + application data) and companion **restore scripts**. One `docker compose up` away from an ITSM service at `https://your-domain`.
+This repository deploys GLPI (IT asset management + helpdesk) behind Traefik with automatic Let's Encrypt TLS, backed by MariaDB 11.4 LTS, with scheduled backups (database + application data) and companion restore scripts. One `docker compose up` away from an ITSM service at `https://your-domain`.
 
 📙 Full narrative installation guide on the blog: [heyvaldemar.com/install-glpi-using-docker-compose/](https://www.heyvaldemar.com/install-glpi-using-docker-compose/).
 
@@ -106,7 +106,7 @@ docker compose -f glpi-traefik-letsencrypt-docker-compose.yml -p glpi up -d --fo
 
 ## Supply chain trust
 
-This repository is a **deployment template**, not a custom Docker image. It orchestrates three upstream images:
+This repository is a deployment template, not a custom Docker image. It orchestrates three upstream images:
 
 - [`traefik`](https://hub.docker.com/_/traefik): reverse proxy, Docker Hub official image
 - [`elestio/glpi`](https://hub.docker.com/r/elestio/glpi): GLPI packaging by Elestio
@@ -165,7 +165,7 @@ chmod +x tests/e2e-backup-restore.sh
 
 It stops the database container briefly to prove failure detection. Run it on a staging copy, not on production.
 
-## Security Notes
+## Security notes
 
 - Credentials are read from `.env` at deploy time; `.env` is gitignored and compose fails fast on missing required variables.
 - **Pre-rotation advisory.** Releases before v1.0.0 (2026-08-31) shipped a tracked `.env` with generated-looking database passwords. Rotate them if your deployment reused them.
