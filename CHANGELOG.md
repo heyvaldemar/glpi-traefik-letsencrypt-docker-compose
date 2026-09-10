@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Security
+
+- **`mariadb:11.4` was rebuilt upstream**; the pin moved from `sha256:611a2fcc5fa7…` to `sha256:80494b981069…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
 
 ## [1.8.0] - 2026-09-07
 
