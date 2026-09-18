@@ -150,7 +150,7 @@ jobs:
           done
           exit "$status"
 
-      - name: Compare pinned GLPI version against the latest release
+      - name: Compare pinned GLPI version against the newest image
         # Runs even when the digest comparison above failed, so one run
         # reports every problem it can see instead of one per day.
         if: always()
@@ -158,10 +158,21 @@ jobs:
           pin="$(grep -m1 -oE '\$\{GLPI_IMAGE_TAG:-.*' glpi-traefik-letsencrypt-docker-compose.yml | sed -E -e ':a' -e 's/\$\{[A-Z0-9_]+:-([^{}]*)\}/\1/' -e 'ta')"
           ref="${pin%%@*}"
           pinned_version="${ref##*:}"
-          latest="$(curl -fsSL --retry 3 -H "Authorization: Bearer $GH_API_TOKEN" https://api.github.com/repos/glpi-project/glpi/releases/latest | jq -r .tag_name)"
-          latest="${latest#v}"
-          if [ -z "$latest" ] || [ "$latest" = "null" ]; then
-            echo "::error::Could not determine the latest GLPI release from the GitHub API"
+          # THE IMAGE, NOT THE PROJECT. This used to ask GitHub for GLPI's
+          # latest release, and GLPI's latest release is not something this
+          # template can pin: the image is built by elestio, a third party, on
+          # its own schedule. On 2026-09-16 GLPI released 11.0.9 and elestio
+          # did not build it, going to 12.0.0-rc2 instead. The pin at 11.0.8
+          # was then reported behind a version that did not exist as an image,
+          # every day, and the triage skipped it every day as "announced but
+          # not published", with nothing anyone could do about either. The
+          # question that can be acted on is whether a newer IMAGE exists, so
+          # that is the question asked. Pre-releases and "latest" are ignored:
+          # a pin is a plain version.
+          latest="$(curl -fsSL --retry 3 'https://hub.docker.com/v2/repositories/elestio/glpi/tags?page_size=100' \
+            | jq -r '.results[].name' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)"
+          if [ -z "$latest" ]; then
+            echo "::error::Could not list elestio/glpi image tags from Docker Hub"
             exit 1
           fi
           # ORDER, NOT INEQUALITY. `!=` calls any difference "behind", including
@@ -175,12 +186,12 @@ jobs:
           # sort -V is used because a string compare puts 3.10 below 3.7.
           p_cmp="${pinned_version#v}"; l_cmp="${latest#v}"
           if [ "$p_cmp" = "$l_cmp" ]; then
-            echo "GLPI pin ${pinned_version} matches the latest release"
+            echo "GLPI pin ${pinned_version} is the newest image elestio publishes"
           elif [ "$(printf '%s\n%s\n' "$p_cmp" "$l_cmp" | sort -V | head -1)" = "$p_cmp" ]; then
             echo "::error::GLPI pin is behind: pinned ${pinned_version}, latest release is ${latest}"
             exit 1
           else
-            echo "GLPI pin ${pinned_version} is ahead of the published ${latest}, which is what a maintenance release for an older branch looks like"
+            echo "GLPI pin ${pinned_version} is ahead of the newest plain image tag ${latest}, which is what a pin to a pre-release looks like"
           fi
 
       - name: Compare pinned Traefik minor against the latest release
