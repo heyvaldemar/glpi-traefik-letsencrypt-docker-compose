@@ -138,7 +138,7 @@ The `backups` container performs a dump → archive → prune → sleep loop: `m
 
 Each cycle logs `Database backup OK: <file> (<bytes> bytes)` or `Database backup FAILED` (the same for the data archive where there is one). A failed dump is kept as `<file>.failed` for diagnosis and never overwrites a good backup. Grep the log for `FAILED` from your monitoring.
 
-**Restore** with the interactive scripts (`chmod +x *.sh` once): `./glpi-restore-database.sh`, then `./glpi-restore-application-data.sh`.
+**Restore** with the interactive scripts (`chmod +x *.sh` once): `./glpi-restore-database.sh`, then `./glpi-restore-application-data.sh`. Each lists the backups and asks, or takes a file name as its argument; both read every path and credential from the running backups container, and CI runs both on every push.
 
 ## Resource limits
 
