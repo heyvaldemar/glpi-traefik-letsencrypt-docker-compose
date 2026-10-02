@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [1.9.1] - 2026-10-02
+
 ### Security
 
 - **`mariadb:11.4` was rebuilt upstream**; the pin moved from `sha256:70cc072b29b4…` to `sha256:1292844148b3…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
@@ -238,7 +242,8 @@ v1.2.0.
 
 - Shellcheck findings in both restore scripts.
 
-[Unreleased]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v1.9.1...HEAD
+[1.9.1]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v1.8.6...v1.9.0
 [1.8.5]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v1.8.4...v1.8.5
 [1.8.4]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v1.8.3...v1.8.4
