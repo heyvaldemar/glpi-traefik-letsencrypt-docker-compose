@@ -47,6 +47,11 @@ fi
 case "$SELECTED" in ""|*/*) echo "error: give a file name from the list, not a path" >&2; exit 1 ;; esac
 docker exec "$BKP" tar -tzf "$DIR/$SELECTED" >/dev/null \
   || { echo "error: $DIR/$SELECTED is missing or does not open; nothing was changed" >&2; exit 1; }
+# An archive written by a 1.x release holds /var/www/html/glpi, which never had
+# GLPI's data in it. Restoring one would clear $DATA and put nothing back, so an
+# archive that does not hold the directory being restored is refused.
+docker exec "$BKP" sh -c "tar -tzf '$DIR/$SELECTED' | grep -q '^${DATA#/}/'" \
+  || { echo "error: $SELECTED does not hold $DATA (a 1.x archive holds /var/www/html/glpi, which never had GLPI's data in it); nothing was changed" >&2; exit 1; }
 
 echo "Stopping $APP_SERVICE so nothing writes while its data is replaced"
 docker stop "$APP" >/dev/null

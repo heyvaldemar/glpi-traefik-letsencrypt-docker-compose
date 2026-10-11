@@ -8,7 +8,7 @@
 x-images:
   traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:${TRAEFIK_IMAGE_VERSION:-3.7@sha256:575fa15b135078fe5e50aa847987d96dbddd7b093c172429618404df73f3fa7c}}
   mariadb: &mariadb-image ${GLPI_MARIADB_IMAGE_TAG:-mariadb:${GLPI_MARIADB_IMAGE_VERSION:-11.4@sha256:1292844148b311e4ed4300022a996d39083f415a963e970cf47cad1b3b18e3a6}}
-  glpi: &glpi-image ${GLPI_IMAGE_TAG:-elestio/glpi:${GLPI_IMAGE_VERSION:-11.0.8@sha256:3cd66c394b4377c5831a407539386b72fcdcd3d8bed3abdc3da8a680c61403a9}}
+  glpi: &glpi-image ${GLPI_IMAGE_TAG:-glpi/glpi:${GLPI_IMAGE_VERSION:-11.0.11@sha256:45572164994cbd12bedd99bf6dd954b7962076dd3b529f0fdc4a84131f30a32a}}
 
 networks:
   glpi-network:
@@ -93,9 +93,24 @@ services:
     volumes:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
-      - glpi-data:${DATA_PATH:-/var/www/html/glpi}
+      # /var/glpi is everything GLPI owns: config (with glpicrypt.key, which
+      # decrypts the passwords it stores), files, marketplace and logs. The
+      # 1.x releases mounted this volume at /var/www/html/glpi, a path the
+      # image never reads, and GLPI's data lived in an anonymous volume the
+      # backups never saw; glpi-move-data-into-volume.sh carries it across.
+      - glpi-data:${DATA_PATH:-/var/glpi}
     environment:
       TIMEZONE: ${GLPI_TIMEZONE:-UTC}
+      # Given the database, the image installs GLPI on first start and runs its
+      # schema migrations whenever the image moves to a newer GLPI. Without it
+      # the web installer appears and an image update leaves the schema behind.
+      # Over a database that is already populated it never reinstalls: it
+      # stops with an error instead, so a lost config volume cannot wipe data.
+      GLPI_DB_HOST: mariadb
+      GLPI_DB_PORT: "3306"
+      GLPI_DB_NAME: ${GLPI_DB_NAME:-glpidb}
+      GLPI_DB_USER: ${GLPI_DB_USER:-glpidbuser}
+      GLPI_DB_PASSWORD: ${GLPI_DB_PASSWORD:?set in .env - see .env.example for generation command}
     networks:
       - glpi-network
       - traefik-network
@@ -297,7 +312,7 @@ services:
       done'
     volumes:
       - glpi-mariadb-backup:/var/lib/mysql
-      - glpi-data:${DATA_PATH:-/var/www/html/glpi}
+      - glpi-data:${DATA_PATH:-/var/glpi}
       - glpi-data-backups:${DATA_BACKUPS_PATH:-/srv/glpi-application-data/backups}
       - glpi-database-backups:${MARIADB_BACKUPS_PATH:-/srv/glpi-mariadb/backups}
     environment:
@@ -310,7 +325,7 @@ services:
       DATA_BACKUP_PRUNE_DAYS: ${DATA_BACKUP_PRUNE_DAYS:-7}
       MARIADB_BACKUPS_PATH: ${MARIADB_BACKUPS_PATH:-/srv/glpi-mariadb/backups}
       DATA_BACKUPS_PATH: ${DATA_BACKUPS_PATH:-/srv/glpi-application-data/backups}
-      DATA_PATH: ${DATA_PATH:-/var/www/html/glpi}
+      DATA_PATH: ${DATA_PATH:-/var/glpi}
       MARIADB_BACKUP_NAME: ${MARIADB_BACKUP_NAME:-glpi-mariadb-backup}
       DATA_BACKUP_NAME: ${DATA_BACKUP_NAME:-glpi-application-data-backup}
     networks:

@@ -209,6 +209,15 @@ test_data_backup_valid() {
   [[ -n "$f" ]] || { fail "no 'Data backup OK' line in the backups log"; return 1; }
   backups_sh "tar -tzf $f > /dev/null" || { fail "tar -tzf failed on $f"; return 1; }
   echo "  data archive readable: $f"
+  # READABLE IS NOT ENOUGH. From 1.0.0 to 1.9.x this archive was readable and
+  # empty: the volume it read was mounted where GLPI never writes, and every
+  # check here passed on it. An archive of GLPI's data holds the two files
+  # without which a restore is not GLPI at all.
+  local want
+  for want in config/config_db.php config/glpicrypt.key; do
+    backups_sh "tar -tzf $f | grep -q '/$want\$'" || { fail "$f does not hold $want - it is not an archive of GLPI's data"; return 1; }
+  done
+  echo "  data archive holds config_db.php and glpicrypt.key"
 }
 
 test_backup_failure_detected() {
@@ -269,6 +278,8 @@ test_data_restore_roundtrip() {
   name="$(backups_sh 'printenv DATA_BACKUP_NAME' | tr -d '[:space:]')"
   newest="$(backups_sh "ls -1 '${dir%/}'/'$name'-*.tar.gz 2>/dev/null" | sort | tail -n 1)"
   [[ -n "$newest" ]] || { fail "no application data archive to restore"; return 1; }
+  local key_before
+  key_before="$(backups_sh "sha256sum '$data/config/glpicrypt.key' 2>/dev/null | cut -d' ' -f1")"
   backups_sh "touch '$data/e2e-restore-marker'" || { fail "could not write the marker into $data"; return 1; }
   echo "  restoring $(basename "$newest") with ./glpi-restore-application-data.sh"
   COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" ./glpi-restore-application-data.sh "$(basename "$newest")" \
@@ -277,6 +288,12 @@ test_data_restore_roundtrip() {
     fail "marker still present after the data restore - it did not replace the data"; return 1
   fi
   echo "  marker absent after the data restore - the archive is restorable"
+  # The key that decrypts what GLPI stores has to come back with the rest.
+  local after
+  after="$(backups_sh "sha256sum '$data/config/glpicrypt.key' 2>/dev/null | cut -d' ' -f1")"
+  [[ -n "$after" && "$after" == "$key_before" ]] \
+    || { fail "glpicrypt.key after the restore (${after:-none}) is not the one before it (${key_before:-none})"; return 1; }
+  echo "  glpicrypt.key survived the restore"
 }
 
 test_prune_removes_old() {
