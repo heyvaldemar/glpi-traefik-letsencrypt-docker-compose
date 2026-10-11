@@ -100,7 +100,6 @@ services:
       # backups never saw; glpi-move-data-into-volume.sh carries it across.
       - glpi-data:${DATA_PATH:-/var/glpi}
     environment:
-      TIMEZONE: ${GLPI_TIMEZONE:-UTC}
       # Given the database, the image installs GLPI on first start and runs its
       # schema migrations whenever the image moves to a newer GLPI. Without it
       # the web installer appears and an image update leaves the schema behind.

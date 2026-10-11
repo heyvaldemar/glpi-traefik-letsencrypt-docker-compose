@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **CI fails on an anonymous volume.** A `VOLUME` an image declares and no mount covers becomes an anonymous volume: never backed up, and replaced by an empty one on `down`/`up`. The deployment verification now inspects every container it starts and fails on one, unless `.github/anonymous-volumes` lists it with the reason. GLPI's data lived in exactly such a volume from 2026-08-31 to 2026-10-11.
 
+### Removed
+
+- **`GLPI_TIMEZONE` is gone, and the README says where GLPI's time zones are set.** The variable reached the container as `TIMEZONE`, which neither the Elestio image nor GLPI's own reads, so it never changed anything. GLPI sets time zones itself once its database user can read MariaDB's zone names; "Time zones" in the README gives the two commands, both run against a live stack before they were written down.
+
 ## [2.0.0] - 2026-10-11
 
 Read [From 1.x to 2.0.0](README.md#from-1x-to-200-move-glpis-data-first) before updating: GLPI's data has to be moved

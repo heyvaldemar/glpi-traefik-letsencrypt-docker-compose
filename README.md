@@ -98,6 +98,18 @@ docker compose -p glpi logs backups | tail -3
 docker compose -f glpi-traefik-letsencrypt-docker-compose.yml -p glpi up -d --force-recreate
 ```
 
+### Time zones
+
+GLPI keeps its own time zone settings; no environment variable sets them. To store dates in UTC and let each user and entity choose the zone they read them in, allow the GLPI database user to read MariaDB's time zone names, then switch GLPI over once:
+
+```bash
+docker compose -f glpi-traefik-letsencrypt-docker-compose.yml -p glpi exec mariadb \
+  sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e "GRANT SELECT ON mysql.time_zone_name TO \`$MARIADB_USER\`@\`%\`; FLUSH PRIVILEGES;"'
+docker compose -f glpi-traefik-letsencrypt-docker-compose.yml -p glpi exec glpi bin/console database:enable_timezones
+```
+
+The default zone is then set under Setup > General > Default values. Without this step GLPI uses UTC.
+
 ## Features
 
 - **GLPI 11** from GLPI's own image, installed on first start and migrated on every image update: asset inventory, helpdesk tickets, contracts, knowledge base. GLPI 12 is held for a major release of this template: it replaces CSRF tokens, breaks plugins written for 11, and rebuilds the knowledge base in a one-way migration.
