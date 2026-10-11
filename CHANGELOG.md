@@ -7,7 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+Read [From 1.x to 2.0.0](README.md#from-1x-to-200-move-glpis-data-first) before updating: GLPI's data has to be moved
+into its volume with the 1.x stack still running, and `update.sh` will not cross to 2.0.0 without `--allow-major`.
+
+### Fixed
+
+- **GLPI's data is in the `glpi-data` volume, and the backups hold it.** From 1.0.0 to 1.9.x the volume was mounted at
+  `/var/www/html/glpi`. That is where Elestio's own compose file keeps the host side of the mount, and it was taken for
+  the container side: the GLPI image never reads it. GLPI keeps its config (with `glpicrypt.key`, which decrypts the
+  passwords it stores), uploaded files, marketplace and logs under `/var/glpi`, which the image declares as a volume, so
+  Docker gave it an anonymous one. The data archives held an empty directory, every check passed on them because each
+  only asked whether the archive opened, and a `docker compose down` followed by `up` would have started GLPI on a new,
+  empty volume. `glpi-data` is now mounted at `/var/glpi` in GLPI and in the backups service.
+  `glpi-move-data-into-volume.sh` carries an existing installation across and refuses to finish unless `glpicrypt.key`
+  and the file count match on both sides.
+- **The data restore refuses an archive that does not hold the data directory.** A 1.x archive holds
+  `/var/www/html/glpi`; restoring one would have cleared `/var/glpi` and put nothing back.
+
+### Security
+
+- **GLPI moves from 11.0.8 to 11.0.11, which is three security releases.** 11.0.9, 11.0.10 and 11.0.11 fix
+  High-severity issues: stored XSS in ticket actors and in form illustration import, an authorization bypass in massive
+  actions, and privilege escalation through user cloning. Elestio never built those versions, going from 11.0.8 straight
+  to 12.0.0, so the only way to them was another image.
+
+### Changed
+
+- **The image is `glpi/glpi`, GLPI's own, instead of `elestio/glpi`.** Elestio's image is built on top of it with the
+  same entrypoint, paths and user, so nothing in the stack changes shape; the difference is that GLPI publishes every
+  release.
+- **GLPI installs itself on first start and migrates its schema on every image update.** The service is given the
+  database (`GLPI_DB_HOST`, `GLPI_DB_PORT`, `GLPI_DB_NAME`, `GLPI_DB_USER`, `GLPI_DB_PASSWORD`, all taken from the values
+  the stack already has), which the image needs for both. Without it the web installer appeared on first start and an
+  image update left the schema behind. Over a database that already holds GLPI it never reinstalls: with its config
+  missing, it stops with an error instead.
+- **The freshness check follows GLPI 11.** 12.0.0 replaces CSRF tokens with header checks, breaks plugins written for
+  11, and rebuilds the knowledge base in a one-way migration; that belongs in a major release of this template.
+
+### Added
+
+- **The upgrade drill proves the move.** CI installs GLPI with the previous release, moves its data with the shipped
+  script, upgrades, and requires the same `glpicrypt.key`, a file written before the upgrade, no reinstall, and the
+  schema at the image's version. The backup test requires `config_db.php` and `glpicrypt.key` in the data archive and
+  the same key after a restore.
 
 ## [1.9.3] - 2026-10-09
 

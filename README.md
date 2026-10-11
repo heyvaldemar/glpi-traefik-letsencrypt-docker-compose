@@ -67,7 +67,7 @@ $EDITOR .env
 docker compose -f glpi-traefik-letsencrypt-docker-compose.yml -p glpi up -d
 ```
 
-Within a couple of minutes `https://${GLPI_HOSTNAME}` serves the GLPI setup wizard with a fresh Let's Encrypt certificate. Point the wizard at host `mariadb`, database `glpidb`, user `glpidbuser` with your `GLPI_DB_PASSWORD`. Default UI logins after setup (`glpi/glpi` etc.) must be changed immediately.
+Within a couple of minutes `https://${GLPI_HOSTNAME}` serves the GLPI login page with a fresh Let's Encrypt certificate: the image installs GLPI into the database on first start, so there is no setup wizard. GLPI creates its four default accounts (`glpi/glpi`, `tech/tech`, `normal/normal`, `post-only/postonly`); change their passwords, or disable the ones you do not use, before anyone else can reach the page.
 
 ### What success looks like
 
@@ -90,6 +90,7 @@ docker compose -p glpi logs backups | tail -3
 - **Cert issuance fails.** DNS hasn't propagated or port 80 isn't reachable from the internet.
 - **`docker compose up` fails with `set in .env`.** A required variable is empty; the error names it.
 - **`network glpi-network not found`.** Step 2 was skipped.
+- **GLPI restarts with exit code 6.** It found no `config_db.php` in `glpi-data` but a database that already holds GLPI, and refused to install over it. See [From 1.x to 2.0.0](#from-1x-to-200-move-glpis-data-first).
 
 ### Apply `.env` or compose-file changes
 
@@ -99,7 +100,7 @@ docker compose -f glpi-traefik-letsencrypt-docker-compose.yml -p glpi up -d --fo
 
 ## Features
 
-- **GLPI 11**: asset inventory, helpdesk tickets, contracts, knowledge base.
+- **GLPI 11** from GLPI's own image, installed on first start and migrated on every image update: asset inventory, helpdesk tickets, contracts, knowledge base. GLPI 12 is held for a major release of this template: it replaces CSRF tokens, breaks plugins written for 11, and rebuilds the knowledge base in a one-way migration.
 - **MariaDB 11.4 LTS** backing store with healthcheck and start-order dependency.
 - **Traefik v3** with automatic HTTP→HTTPS redirect and Let's Encrypt TLS-ALPN certificate issuance.
 - **Basic-auth protected Traefik dashboard** on a separate hostname.
@@ -110,12 +111,25 @@ docker compose -f glpi-traefik-letsencrypt-docker-compose.yml -p glpi up -d --fo
 
 `./update.sh` moves this checkout to the latest release tag — a combination this repository's CI has booted, upgraded from the previous release on the same volumes, and smoke-tested — and then runs `docker compose up -d`. It refuses to cross a major version unattended, refuses to run over local changes, and names any variable that became required since your version before anything has moved. `./update.sh --dry-run` says what would happen. Every release cut by fleet triage also carries what upstream changed, read from its release notes against this compose file.
 
+### From 1.x to 2.0.0: move GLPI's data first
+
+Releases 1.0.0 to 1.9.x mounted the `glpi-data` volume at `/var/www/html/glpi`, a path the GLPI image never reads. GLPI keeps everything it owns under `/var/glpi` (its config with `glpicrypt.key`, which decrypts the passwords it stores, plus uploaded files, the marketplace and logs), so on those releases Docker kept it in an anonymous volume. The data archives held an empty directory, and a `docker compose down` followed by `up` would have started GLPI on a new, empty volume. 2.0.0 mounts `glpi-data` at `/var/glpi`. With the 1.x stack still running:
+
+```bash
+./glpi-move-data-into-volume.sh
+./update.sh --allow-major
+```
+
+The script stops GLPI, copies the anonymous volume into `glpi-data`, and refuses to finish unless `glpicrypt.key` and the file count match on both sides. 2.0.0 then starts GLPI 11.0.11 on that data and migrates the schema from 11.0.8 itself. Take a fresh database backup first; archives written by 1.x hold no GLPI data, and the restore script refuses them.
+
+If GLPI already came up on an empty volume (the installer appeared over a database that still has your data), the 2.0.0 image will stop with an error rather than reinstall over it. Restore `config/config_db.php` with `docker compose exec glpi bin/console database:configure` and the same database credentials; passwords GLPI stored encrypted (mail collectors, LDAP binds) need to be entered again, because the key that encrypted them is gone.
+
 ## Supply chain trust
 
 This repository is a deployment template, not a custom Docker image. It orchestrates three upstream images:
 
 - [`traefik`](https://hub.docker.com/_/traefik): reverse proxy, Docker Hub official image
-- [`elestio/glpi`](https://hub.docker.com/r/elestio/glpi): GLPI packaging by Elestio
+- [`glpi/glpi`](https://hub.docker.com/r/glpi/glpi): GLPI's official image, built by the GLPI project for every release
 - [`mariadb`](https://hub.docker.com/_/mariadb): MariaDB, Docker Hub official image
 
 All three are pinned to `tag@sha256:<digest>` as interpolation defaults in the compose file's `x-images` block. `git pull` alone delivers the version combination this repository has tested; an `*_IMAGE_TAG` variable in `.env` overrides deliberately.

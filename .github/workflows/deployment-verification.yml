@@ -185,7 +185,27 @@ jobs:
             docker compose -f .upgrade-drill-previous.yml -p "$COMPOSE_PROJECT_NAME" logs --tail 80
             exit 1
           fi
-          echo "$prev is up and healthy; stopping it and keeping its volumes"
+          echo "$prev is up and healthy"
+          # 2.0.0 MOVES WHERE GLPI'S DATA LIVES. Up to 1.9.x it sat in an
+          # anonymous volume at /var/glpi while glpi-data was mounted where
+          # nothing reads; glpi-move-data-into-volume.sh carries it across
+          # before the update. Proven here on a GLPI the previous release
+          # really installed: its glpicrypt.key and a marker file must reach
+          # the upgraded stack unchanged, checked after the start below.
+          if [ -x ./glpi-move-data-into-volume.sh ] && ! git cat-file -e "$prev:glpi-move-data-into-volume.sh" 2>/dev/null; then
+            # shellcheck disable=SC1091
+            set -a; . ./.env; set +a
+            prevc() { docker compose -f .upgrade-drill-previous.yml -p "$COMPOSE_PROJECT_NAME" exec -T glpi "$@"; }
+            prevc bin/console database:install --db-host=mariadb --db-name="${GLPI_DB_NAME:-glpidb}" \
+              --db-user="${GLPI_DB_USER:-glpidbuser}" --db-password="$GLPI_DB_PASSWORD" --no-interaction --quiet
+            prevc sh -c 'echo upgrade-drill > /var/glpi/files/_uploads/upgrade-drill-marker'
+            key="$(prevc sha256sum /var/glpi/config/glpicrypt.key | cut -d' ' -f1)"
+            [ -n "$key" ] || { echo "::error::$prev installed GLPI but wrote no glpicrypt.key"; exit 1; }
+            echo "DRILL_GLPI_KEY=$key" >> "$GITHUB_ENV"
+            echo "$prev installed GLPI; glpicrypt.key ${key:0:12}..., moving its data"
+            ./glpi-move-data-into-volume.sh
+          fi
+          echo "stopping $prev and keeping its volumes"
           docker compose -f .upgrade-drill-previous.yml -p "$COMPOSE_PROJECT_NAME" down
           rm -f .upgrade-drill-previous.yml
           echo "the start below is now an upgrade from $prev"
@@ -209,6 +229,28 @@ jobs:
             sleep 10
           done'
           curl -skL "https://$APP_HOSTNAME/" -o /dev/null -w "GLPI front page: %{http_code}\n"
+
+      - name: The GLPI the previous release had is the GLPI this one serves
+        # Only on the run that drills the move to /var/glpi (see the upgrade
+        # drill). The same key means encrypted passwords still decrypt; the
+        # marker means the files came across; no greeting means the image
+        # recognised an installed GLPI instead of installing a new one; and
+        # the schema version is the one this image migrates to.
+        if: env.DRILL_GLPI_KEY != ''
+        run: |
+          app() { docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" exec -T "$@"; }
+          key="$(app glpi sha256sum /var/glpi/config/glpicrypt.key | cut -d' ' -f1)"
+          [ "$key" = "$DRILL_GLPI_KEY" ] || { echo "::error::glpicrypt.key is ${key:-missing} after the upgrade, ${DRILL_GLPI_KEY} before it"; exit 1; }
+          app glpi test -f /var/glpi/files/_uploads/upgrade-drill-marker || { echo "::error::the file GLPI held before the upgrade is not there after it"; exit 1; }
+          if docker compose -f "$DOCKER_COMPOSE_FILE" -p "$COMPOSE_PROJECT_NAME" logs glpi | grep -q "installation completed"; then
+            echo "::error::GLPI installed itself afresh instead of upgrading the one it was given"; exit 1
+          fi
+          # shellcheck disable=SC1091
+          set -a; . ./.env; set +a
+          ver="$(app mariadb mariadb -u"${GLPI_DB_USER:-glpidbuser}" -p"$GLPI_DB_PASSWORD" "${GLPI_DB_NAME:-glpidb}" -N -e "SELECT value FROM glpi_configs WHERE context='core' AND name='version'")"
+          want="$(grep -m1 -oE 'glpi/glpi:[$][{]GLPI_IMAGE_VERSION:-[0-9.]+' "$DOCKER_COMPOSE_FILE" | grep -oE '[0-9.]+$')"
+          [ "$ver" = "$want" ] || { echo "::error::the schema is at ${ver:-unknown}, the image is GLPI $want: the update did not run"; exit 1; }
+          echo "same glpicrypt.key, the marker file, no reinstall, schema migrated to $ver"
 
       - name: Verify a backup is produced and valid
         # Log-driven: the file named in a 'backup OK' line is complete by
