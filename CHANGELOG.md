@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [2.0.0] - 2026-10-11
+
 Read [From 1.x to 2.0.0](README.md#from-1x-to-200-move-glpis-data-first) before updating: GLPI's data has to be moved
 into its volume with the 1.x stack still running, and `update.sh` will not cross to 2.0.0 without `--allow-major`.
 
@@ -301,7 +305,8 @@ v1.2.0.
 
 - Shellcheck findings in both restore scripts.
 
-[Unreleased]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v1.9.3...HEAD
+[Unreleased]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v1.9.3...v2.0.0
 [1.9.3]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v1.9.2...v1.9.3
 [1.9.2]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v1.9.1...v1.9.2
 [1.9.1]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v1.9.0...v1.9.1
