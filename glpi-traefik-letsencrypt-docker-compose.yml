@@ -7,7 +7,7 @@
 # the pins from these lines — this block is the single source of truth.
 x-images:
   traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:${TRAEFIK_IMAGE_VERSION:-3.7@sha256:0f6150202bc1fed72a7bd2107460eaa510e5b8a905f3fdb5b84f2c8619c33368}}
-  mariadb: &mariadb-image ${GLPI_MARIADB_IMAGE_TAG:-mariadb:${GLPI_MARIADB_IMAGE_VERSION:-11.4@sha256:1292844148b311e4ed4300022a996d39083f415a963e970cf47cad1b3b18e3a6}}
+  mariadb: &mariadb-image ${GLPI_MARIADB_IMAGE_TAG:-mariadb:${GLPI_MARIADB_IMAGE_VERSION:-11.4@sha256:250e1609e93c0e6aecf64bfbab2d84d5e89d2481540fe77447ff6c855c3b1873}}
   glpi: &glpi-image ${GLPI_IMAGE_TAG:-glpi/glpi:${GLPI_IMAGE_VERSION:-11.0.11@sha256:45572164994cbd12bedd99bf6dd954b7962076dd3b529f0fdc4a84131f30a32a}}
 
 networks:
