@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_(no unreleased changes yet)_
+
+## [2.0.5] - 2026-10-22
+
 ### Security
 
 - **`glpi/glpi:11.0.11` was rebuilt upstream**; the pin moved from `sha256:f5c5de01a5d2…` to `sha256:21fd8f65a751…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
@@ -339,7 +343,8 @@ v1.2.0.
 
 - Shellcheck findings in both restore scripts.
 
-[Unreleased]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v2.0.4...HEAD
+[Unreleased]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v2.0.5...HEAD
+[2.0.5]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v2.0.4...v2.0.5
 [2.0.4]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v2.0.3...v2.0.4
 [2.0.3]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v2.0.2...v2.0.3
 [2.0.2]: https://github.com/heyvaldemar/glpi-traefik-letsencrypt-docker-compose/compare/v2.0.1...v2.0.2
