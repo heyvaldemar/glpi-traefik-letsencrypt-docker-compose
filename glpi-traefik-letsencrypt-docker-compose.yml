@@ -8,7 +8,7 @@
 x-images:
   traefik: &traefik-image ${TRAEFIK_IMAGE_TAG:-traefik:${TRAEFIK_IMAGE_VERSION:-3.7@sha256:1336e85aaed293bd63d005086e0dd013b04078b26aaeb1c18b26a2f928af7e65}}
   mariadb: &mariadb-image ${GLPI_MARIADB_IMAGE_TAG:-mariadb:${GLPI_MARIADB_IMAGE_VERSION:-11.4@sha256:d1891ede5a559f1086f55053bb8cc1569b0298338c4d72d71725a7f74f6ba620}}
-  glpi: &glpi-image ${GLPI_IMAGE_TAG:-glpi/glpi:${GLPI_IMAGE_VERSION:-11.0.11@sha256:5faf2b2621ea4d54f51fceda5d454f280e70024f78b553ef8ffee246533a6ad1}}
+  glpi: &glpi-image ${GLPI_IMAGE_TAG:-glpi/glpi:${GLPI_IMAGE_VERSION:-11.0.12@sha256:8a805373e36ae293a3f7dbb28c01a66c673be155d3697d67d1a34080dc122994}}
 
 networks:
   glpi-network:
