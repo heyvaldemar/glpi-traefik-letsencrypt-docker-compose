@@ -277,7 +277,9 @@ services:
         STAMP="$$(date +%Y-%m-%d_%H-%M)";
         DB_FILE="$$MARIADB_BACKUPS_PATH/$$MARIADB_BACKUP_NAME-$$STAMP.gz";
         echo "[$$(date -Iseconds)] Starting database backup to $$DB_FILE";
-        if mariadb-dump -h mariadb -u $$GLPI_DB_USER -p"$$GLPI_DB_PASSWORD" $$GLPI_DB_NAME | gzip > "$$DB_FILE.partial"; then
+        # MYSQL_PWD, never -p: every user on the host reads a command line
+        # with ps; the environment stays with the process.
+        if MYSQL_PWD="$$GLPI_DB_PASSWORD" mariadb-dump -h mariadb -u $$GLPI_DB_USER $$GLPI_DB_NAME | gzip > "$$DB_FILE.partial"; then
           mv "$$DB_FILE.partial" "$$DB_FILE";
           echo "[$$(date -Iseconds)] Database backup OK: $$DB_FILE ($$(stat -c %s "$$DB_FILE") bytes)";
         else
