@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Security
+
+- **The time zone step in the README keeps the root password off the command line.** It ran `mariadb -uroot -p"$MARIADB_ROOT_PASSWORD"` inside the database container, where the host's `ps` shows the password while the client runs: the client blanks its copy only after parsing it, and its length still shows. It now sets `MYSQL_PWD` for that one command. Fleet conformance reads the shell blocks of README.md and docs/ from now on; this line had been outside what it read.
 
 ## [2.0.16] - 2026-11-08
 

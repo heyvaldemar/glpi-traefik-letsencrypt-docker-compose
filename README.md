@@ -104,7 +104,7 @@ GLPI keeps its own time zone settings; no environment variable sets them. To sto
 
 ```bash
 docker compose -f glpi-traefik-letsencrypt-docker-compose.yml -p glpi exec mariadb \
-  sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e "GRANT SELECT ON mysql.time_zone_name TO \`$MARIADB_USER\`@\`%\`; FLUSH PRIVILEGES;"'
+  sh -c 'MYSQL_PWD="$MARIADB_ROOT_PASSWORD" mariadb -uroot -e "GRANT SELECT ON mysql.time_zone_name TO \`$MARIADB_USER\`@\`%\`; FLUSH PRIVILEGES;"'
 docker compose -f glpi-traefik-letsencrypt-docker-compose.yml -p glpi exec glpi bin/console database:enable_timezones
 ```
 
