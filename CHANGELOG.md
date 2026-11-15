@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Security
+
+- **`glpi/glpi:11.0.13` was rebuilt upstream**; the pin moved from `sha256:98016a131e1d…` to `sha256:2ccf03228a61…`. Same version, same tag, a rebuilt base image — the usual shape of a security fix in a base layer.
 
 ## [2.0.20] - 2026-11-14
 
